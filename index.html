@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>SVG Viewer – ফাইল সিলেক্ট করে জিপ লোড করুন</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: radial-gradient(circle at 10% 20%, #0e1428, #050814);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: #eef2ff;
+      min-height: 100vh;
+    }
+    /* ফাইল সিলেক্টর সেকশন */
+    .file-selector {
+      background: #0a0f1e;
+      border-bottom: 1px solid #2a3366;
+      padding: 16px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 15px;
+      justify-content: space-between;
+    }
+    .select-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .file-label {
+      background: linear-gradient(105deg, #3c6eff, #5f3af0);
+      padding: 10px 24px;
+      border-radius: 40px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      display: inline-block;
+      transition: 0.2s;
+      border: none;
+      font-size: 0.9rem;
+    }
+    .file-label:hover {
+      transform: scale(0.97);
+    }
+    #selectedFileName {
+      background: #111827;
+      padding: 8px 18px;
+      border-radius: 40px;
+      font-size: 0.85rem;
+      color: #bbd4ff;
+    }
+    .reset-btn {
+      background: #1f2a4e;
+      border: 1px solid #5a6bb0;
+      padding: 8px 20px;
+      border-radius: 40px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .status-badge {
+      background: #0f1430;
+      padding: 6px 15px;
+      border-radius: 40px;
+      font-size: 0.8rem;
+    }
+    /* হেডার এবং গ্রিড স্টাইল */
+    .library-header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      backdrop-filter: blur(16px);
+      background: rgba(9, 14, 26, 0.92);
+      border-bottom: 1px solid #2a3366;
+      padding: 1rem 1.2rem;
+    }
+    .title-badge {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    h1 {
+      font-size: 1.5rem;
+      background: linear-gradient(135deg, #d6e2ff, #8aa6ff);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+    .badge {
+      background: #111a36;
+      padding: 4px 14px;
+      border-radius: 40px;
+      font-size: 0.75rem;
+    }
+    .category-strip {
+      overflow-x: auto;
+      white-space: nowrap;
+      margin: 10px 0 8px;
+      padding-bottom: 6px;
+    }
+    .cat-btn {
+      background: #0f162f;
+      border: 1px solid #2c3870;
+      padding: 5px 15px;
+      border-radius: 40px;
+      font-size: 0.75rem;
+      margin-right: 8px;
+      cursor: pointer;
+      display: inline-block;
+      color: #bbd4ff;
+    }
+    .cat-btn.active {
+      background: #3c6eff;
+      border-color: white;
+      color: white;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 12px 0 6px;
+    }
+    .search-input {
+      flex: 2;
+      background: #0f162f;
+      border: 1px solid #2c3870;
+      padding: 8px 16px;
+      border-radius: 60px;
+      color: white;
+    }
+    .btn {
+      background: #111a36;
+      border: 1px solid #3a4790;
+      padding: 6px 14px;
+      border-radius: 40px;
+      cursor: pointer;
+      color: white;
+    }
+    .btn-primary {
+      background: linear-gradient(105deg, #3c6eff, #5f3af0);
+      border: none;
+      color: white;
+    }
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.9rem;
+      padding: 1.2rem;
+    }
+    @media (min-width: 640px) {
+      .icon-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (min-width: 900px) {
+      .icon-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (min-width: 1200px) {
+      .icon-grid { grid-template-columns: repeat(5, 1fr); }
+    }
+    .icon-card {
+      background: rgba(15, 24, 48, 0.8);
+      border-radius: 20px;
+      border: 1px solid #2c3a70;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .icon-card:hover {
+      transform: translateY(-4px);
+      border-color: #8aa6ff;
+    }
+    .icon-card img {
+      width: 54%;
+      height: 54%;
+      object-fit: contain;
+    }
+    .icon-name {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+      font-size: 0.65rem;
+      padding: 5px;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .copy-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: #22c55e;
+      width: 22px;
+      height: 22px;
+      border-radius: 30px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .icon-card.copied-flash .copy-badge {
+      display: flex;
+    }
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1c2d55e6;
+      backdrop-filter: blur(12px);
+      padding: 8px 20px;
+      border-radius: 60px;
+      font-size: 0.8rem;
+      transition: 0.25s;
+      z-index: 200;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+    .status-area {
+      text-align: center;
+      padding: 1rem;
+      color: #9aa9e0;
+    }
+    .load-more-hint {
+      text-align: center;
+      margin: 10px 0 20px;
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="file-selector">
+  <div class="select-area">
+    <label for="zipFileInput" class="file-label">📁 ZIP ফাইল সিলেক্ট করুন</label>
+    <input type="file" id="zipFileInput" accept=".zip" style="display:none;" />
+    <span id="selectedFileName">🔘 কোনো ফাইল নির্বাচিত হয়নি</span>
+  </div>
+  <button id="resetAllBtn" class="reset-btn">🗑️ রিসেট</button>
+  <div class="status-badge" id="globalStatus">⚡ ফাইল সিলেক্ট করুন</div>
+</div>
+
+<header class="library-header" style="display:none;" id="mainHeader">
+  <div class="title-badge">
+    <h1>🎨 SVG Icon Library</h1>
+    <span class="badge" id="iconCounter">— icons</span>
+  </div>
+  <div class="category-strip" id="categoryStrip">
+    <div id="categoryList"></div>
+  </div>
+  <div class="controls">
+    <input type="text" id="searchInput" class="search-input" placeholder="🔍 আইকন খুঁজুন (যেমন: heart, bookmark)">
+    <button id="shuffleBtn" class="btn btn-primary">🎲 শাফল</button>
+    <button id="loadMoreBtn" class="btn">⤵ আরও লোড</button>
+  </div>
+  <div style="font-size:11px; margin-top:6px;">✅ যেকোনো আইকনে ক্লিক করলে SVG কোড কপি হবে</div>
+</header>
+
+<main>
+  <div id="iconGrid" class="icon-grid"></div>
+  <div id="statusMessage" class="status-area"></div>
+  <div id="loadMoreHint" class="load-more-hint"></div>
+</main>
+
+<div id="toastMsg" class="toast">📋 কপি হয়েছে!</div>
+
+<script>
+  (function() {
+    const zipFileInput = document.getElementById('zipFileInput');
+    const selectedFileSpan = document.getElementById('selectedFileName');
+    const resetBtn = document.getElementById('resetAllBtn');
+    const globalStatus = document.getElementById('globalStatus');
+    const mainHeader = document.getElementById('mainHeader');
+    const gridContainer = document.getElementById('iconGrid');
+    const statusDiv = document.getElementById('statusMessage');
+    const iconCounterSpan = document.getElementById('iconCounter');
+    const searchInput = document.getElementById('searchInput');
+    const shuffleBtn = document.getElementById('shuffleBtn');
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    const categoryListDiv = document.getElementById('categoryList');
+    const toastEl = document.getElementById('toastMsg');
+    const loadMoreHint = document.getElementById('loadMoreHint');
+    
+    let zipArchive = null;
+    let allSvgPaths = [];
+    let categoryMap = new Map();
+    let uniqueCategories = [];
+    let activeCategory = 'all';
+    let filteredPaths = [];
+    let displayList = [];
+    let loadedCount = 0;
+    let isLoadingBatch = false;
+    const BATCH_SIZE = 40;
+
+    function showToast(msg, duration = 1500) {
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      setTimeout(() => toastEl.classList.remove('show'), duration);
+    }
+
+    // ফিক্সড ফাংশন: জিপ ফাইলের সম্পূর্ণ পাথ থেকে ক্যাটাগরি ফোল্ডারের নাম বের করার জন্য
+    function extractCategoryFromPath(filePath) {
+      let parts = filePath.split('/');
+      // ফাইল নেমটা রিমুভ করি
+      parts.pop(); 
+      
+      // যদি মূল জিপের ভেতরেই সাব-ফোল্ডার থাকে (যেমন: svg-icon-pack/001-dashboard-ui)
+      if (parts.length > 0) {
+        let lastFolder = parts[parts.length - 1];
+        // যদি রুট ফোল্ডার আসে (যেমন: svg-icon-pack) এবং আরও ফোল্ডার ভেতরে থাকে
+        if (lastFolder === 'svg-icon-pack' && parts.length > 1) {
+          return 'General';
+        }
+        
+        // ফোল্ডারের নামের শুরুর সিরিয়াল নম্বর (যেমন: 001-) বাদ দিয়ে সুন্দর নাম তৈরি
+        let cleanName = lastFolder.replace(/^\d+[-_]/, '');
+        // ক্যাপিটালাইজেশন করা (dashboard-ui -> Dashboard Ui)
+        return cleanName.split(/[-_]/).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+      }
+      return 'Uncategorized';
+    }
+
+    function buildCategories(paths) {
+      const catMap = new Map();
+      const catSet = new Set();
+      for (let p of paths) {
+        let cat = extractCategoryFromPath(p);
+        catMap.set(p, cat);
+        catSet.add(cat);
+      }
+      let sorted = Array.from(catSet).sort((a, b) => a.localeCompare(b));
+      return { catMap, categories: sorted };
+    }
+
+    function renderCategoryBtns(categories) {
+      categoryListDiv.innerHTML = '';
+      const allBtn = document.createElement('button');
+      allBtn.className = 'cat-btn active';
+      allBtn.innerText = '📁 সব';
+      allBtn.dataset.cat = 'all';
+      allBtn.addEventListener('click', () => setActiveCategory('all'));
+      categoryListDiv.appendChild(allBtn);
+      
+      for (let cat of categories) {
+        let btn = document.createElement('button');
+        btn.className = 'cat-btn';
+        btn.innerText = `📂 ${cat}`;
+        btn.dataset.cat = cat;
+        btn.addEventListener('click', () => setActiveCategory(cat));
+        categoryListDiv.appendChild(btn);
+      }
+    }
+
+    function setActiveCategory(cat) {
+      activeCategory = cat;
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        if (btn.dataset.cat === cat) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+      applyFilters();
+    }
+
+    function applyFilters() {
+      if (!allSvgPaths.length) return;
+      let temp = [...allSvgPaths];
+      if (activeCategory !== 'all') {
+        temp = temp.filter(p => categoryMap.get(p) === activeCategory);
+      }
+      const term = searchInput.value.trim().toLowerCase();
+      if (term) {
+        temp = temp.filter(p => p.split('/').pop().toLowerCase().includes(term));
+      }
+      filteredPaths = temp;
+      displayList = [...filteredPaths];
+      loadedCount = 0;
+      gridContainer.innerHTML = '';
+      updateStatsUI();
+      if (displayList.length) renderNextBatch();
+      else statusDiv.innerHTML = '😕 কোনো আইকন খুঁজে পাওয়া যায়নি।';
+    }
+
+    function updateStatsUI() {
+      const total = displayList.length;
+      iconCounterSpan.innerText = `${total.toLocaleString()} icon${total !== 1 ? 's' : ''}`;
+      if (total === 0) statusDiv.innerHTML = '🔍 মিলছে না — ফিল্টার বা সার্চ পরিবর্তন করুন।';
+      else statusDiv.innerHTML = `✨ ${total} টি আইকন পাওয়া গেছে — ক্লিক করে SVG কপি করুন ✨`;
+    }
+
+    async function renderNextBatch() {
+      if (!zipArchive || isLoadingBatch) return;
+      if (loadedCount >= displayList.length) {
+        if (displayList.length > 0) loadMoreHint.innerHTML = `✔️ সব ${displayList.length}টি আইকন লোড হয়েছে।`;
+        else loadMoreHint.innerHTML = '';
+        return;
+      }
+      isLoadingBatch = true;
+      const start = loadedCount;
+      const end = Math.min(loadedCount + BATCH_SIZE, displayList.length);
+      const batch = displayList.slice(start, end);
+      const fragment = document.createDocumentFragment();
+      
+      for (let filePath of batch) {
+        const fileName = filePath.split('/').pop();
+        const card = document.createElement('div');
+        card.className = 'icon-card';
+        const img = document.createElement('img');
+        img.style.opacity = '0';
+        const nameSpan = document.createElement('div');
+        nameSpan.className = 'icon-name';
+        nameSpan.innerText = fileName.length > 28 ? fileName.slice(0,25)+'...' : fileName;
+        const badge = document.createElement('div');
+        badge.className = 'copy-badge';
+        badge.innerText = '✓';
+        card.appendChild(img);
+        card.appendChild(nameSpan);
+        card.appendChild(badge);
+        
+        try {
+          const svgFile = zipArchive.file(filePath);
+          if (svgFile) {
+            const svgString = await svgFile.async('string');
+            if (svgString && svgString.includes('<svg')) {
+              const encoded = encodeURIComponent(svgString).replace(/\(/g, '%28').replace(/\)/g, '%29');
+              img.src = `data:image/svg+xml;charset=utf-8,${encoded}`;
+              img.onload = () => img.style.opacity = '1';
+              img.onerror = () => { img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="%2388aaff" viewBox="0 0 24 24"%3E%3Cpath d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15h-2v-2h2v2zm0-4h-2V7h2v6z"/%3E%3C/svg%3E'; img.style.opacity='0.7'; };
+            } else throw new Error();
+          } else throw new Error();
+        } catch(e) {
+          img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="%23aaaaff" viewBox="0 0 24 24"%3E%3Cpath d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14h-2v-2h2v2zm0-4h-2V7h2v6z"/%3E%3C/svg%3E';
+          img.style.opacity = '0.8';
+        }
+        
+        card.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          try {
+            const raw = await zipArchive.file(filePath).async('string');
+            await navigator.clipboard.writeText(raw);
+            card.classList.add('copied-flash');
+            showToast(`✅ কপি: ${fileName}`, 1200);
+            setTimeout(() => card.classList.remove('copied-flash'), 1000);
+          } catch(err) {
+            showToast(`❌ কপি ব্যর্থ`, 1200);
+          }
+        });
+        fragment.appendChild(card);
+      }
+      gridContainer.appendChild(fragment);
+      loadedCount = end;
+      isLoadingBatch = false;
+      const remaining = displayList.length - loadedCount;
+      if (remaining > 0) loadMoreHint.innerHTML = `⬇️ আরো ${remaining} টি আইকন বাকি (স্ক্রল বা লোড মোরে)`;
+      else loadMoreHint.innerHTML = `🎉 সব ${displayList.length} টি আইকন সম্পূর্ণ`;
+    }
+    
+    function shuffleDisplay() {
+      if (displayList.length <= 1) return showToast('শাফল করার মতো যথেষ্ট আইকন নেই', 1000);
+      for (let i = displayList.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [displayList[i], displayList[j]] = [displayList[j], displayList[i]];
+      }
+      loadedCount = 0;
+      gridContainer.innerHTML = '';
+      renderNextBatch();
+      showToast('🎲 শাফল করা হয়েছে!', 1000);
+    }
+    
+    function manualLoadMore() {
+      if (zipArchive && loadedCount < displayList.length) renderNextBatch();
+      else showToast('সব আইকন ইতিমধ্যে লোড', 800);
+    }
+    
+    function scrollHandler() {
+      if (!zipArchive || isLoadingBatch) return;
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      const winH = window.innerHeight;
+      const docH = document.documentElement.scrollHeight;
+      if (scrollY + winH >= docH - 300) {
+        if (loadedCount < displayList.length) renderNextBatch();
+      }
+    }
+    
+    async function processZip(file) {
+      if (!file) return;
+      selectedFileSpan.innerText = `📄 ${file.name}`;
+      globalStatus.innerText = `⏳ লোড হচ্ছে: ${file.name} ...`;
+      statusDiv.innerHTML = `📦 "${file.name}" প্রসেস করা হচ্ছে...`;
+      gridContainer.innerHTML = '';
+      categoryListDiv.innerHTML = '';
+      activeCategory = 'all';
+      searchInput.value = '';
+      
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        zipArchive = await JSZip.loadAsync(arrayBuffer);
+        const allEntries = Object.keys(zipArchive.files);
+        
+        // শুধু ফাইল চেক করা এবং কোন ম্যাক বা হিডেন ক্যাশ ফাইল (.DS_Store / __MACOSX) ফিল্টার করা
+        allSvgPaths = allEntries.filter(f => {
+          return f.toLowerCase().endsWith('.svg') && !f.includes('__MACOSX') && !f.startsWith('.');
+        }).sort();
+
+        if (allSvgPaths.length === 0) {
+          throw new Error('এই জিপে কোনো .svg ফাইল নেই');
+        }
+        
+        const { catMap, categories } = buildCategories(allSvgPaths);
+        categoryMap = catMap;
+        uniqueCategories = categories;
+        renderCategoryBtns(uniqueCategories);
+        
+        activeCategory = 'all';
+        filteredPaths = [...allSvgPaths];
+        displayList = [...allSvgPaths];
+        loadedCount = 0;
+        mainHeader.style.display = 'block';
+        globalStatus.innerText = `✅ লোড হয়েছে: ${allSvgPaths.length} টি আইকন | ${uniqueCategories.length} ক্যাটাগরি`;
+        statusDiv.innerHTML = `🎉 "${file.name}" থেকে ${allSvgPaths.length} টি SVG সফলভাবে লোড!`;
+        updateStatsUI();
+        renderNextBatch();
+      } catch (err) {
+        console.error(err);
+        globalStatus.innerText = `❌ ব্যর্থ: ${err.message}`;
+        statusDiv.innerHTML = `⚠️ ফাইলটি পড়া যায়নি। নিশ্চিত করুন এটি একটি বৈধ ZIP এবং এতে .svg ফাইল আছে।`;
+        mainHeader.style.display = 'none';
+        zipArchive = null;
+        allSvgPaths = [];
+      }
+    }
+    
+    function resetAll() {
+      zipArchive = null;
+      allSvgPaths = [];
+      displayList = [];
+      gridContainer.innerHTML = '';
+      categoryListDiv.innerHTML = '';
+      mainHeader.style.display = 'none';
+      globalStatus.innerText = '⚡ ফাইল সিলেক্ট করুন';
+      statusDiv.innerHTML = '🔽 উপরের বাটনে ক্লিক করে আপনার কম্পিউটার থেকে একটি ZIP ফাইল বাছাই করুন।';
+      loadMoreHint.innerHTML = '';
+      selectedFileSpan.innerText = '🔘 কোনো ফাইল নির্বাচিত হয়নি';
+      activeCategory = 'all';
+      searchInput.value = '';
+      zipFileInput.value = '';
+    }
+    
+    document.querySelector('.file-label').addEventListener('click', () => {
+      zipFileInput.click();
+    });
+    zipFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        processZip(e.target.files[0]);
+      }
+    });
+    resetBtn.addEventListener('click', resetAll);
+    shuffleBtn.addEventListener('click', () => { if (displayList.length) shuffleDisplay(); });
+    loadMoreBtn.addEventListener('click', manualLoadMore);
+    searchInput.addEventListener('input', applyFilters);
+    window.addEventListener('scroll', scrollHandler);
+    
+    resetAll();
+  })();
+</script>
+</body>
+</html>
