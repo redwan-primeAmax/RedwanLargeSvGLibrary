@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>SVG Viewer – ফাইল সিলেক্ট করে জিপ লোড করুন</title>
+  <title>SVG Viewer – অটো জিপ লাইব্রেরি</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     * {
@@ -16,61 +16,46 @@
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       color: #eef2ff;
       min-height: 100vh;
+      padding-bottom: env(safe-area-inset-bottom);
     }
-    /* ফাইল সিলেক্টর সেকশন */
-    .file-selector {
+
+    /* === মোবাইল ফার্স্ট স্টাইল (Default Mobile) === */
+    
+    /* টপ স্ট্যাটাস বার */
+    .status-bar {
       background: #0a0f1e;
       border-bottom: 1px solid #2a3366;
-      padding: 16px 20px;
+      padding: 12px 16px;
       display: flex;
-      flex-wrap: wrap;
       align-items: center;
-      gap: 15px;
       justify-content: space-between;
-    }
-    .select-area {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .file-label {
-      background: linear-gradient(105deg, #3c6eff, #5f3af0);
-      padding: 10px 24px;
-      border-radius: 40px;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-      display: inline-block;
-      transition: 0.2s;
-      border: none;
-      font-size: 0.9rem;
-    }
-    .file-label:hover {
-      transform: scale(0.97);
-    }
-    #selectedFileName {
-      background: #111827;
-      padding: 8px 18px;
-      border-radius: 40px;
-      font-size: 0.85rem;
-      color: #bbd4ff;
-    }
-    .reset-btn {
-      background: #1f2a4e;
-      border: 1px solid #5a6bb0;
-      padding: 8px 20px;
-      border-radius: 40px;
-      cursor: pointer;
-      font-weight: 500;
+      gap: 10px;
     }
     .status-badge {
       background: #0f1430;
-      padding: 6px 15px;
+      padding: 6px 14px;
       border-radius: 40px;
       font-size: 0.8rem;
+      color: #bbd4ff;
+      border: 1px solid #1f2a4e;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
     }
-    /* হেডার এবং গ্রিড স্টাইল */
+    .reload-btn {
+      background: linear-gradient(105deg, #3c6eff, #5f3af0);
+      border: none;
+      padding: 6px 16px;
+      border-radius: 40px;
+      cursor: pointer;
+      font-weight: bold;
+      color: white;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    /* হেডার ও কন্ট্রোলস */
     .library-header {
       position: sticky;
       top: 0;
@@ -78,95 +63,118 @@
       backdrop-filter: blur(16px);
       background: rgba(9, 14, 26, 0.92);
       border-bottom: 1px solid #2a3366;
-      padding: 1rem 1.2rem;
+      padding: 12px 16px;
     }
     .title-badge {
       display: flex;
-      align-items: baseline;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
     }
     h1 {
-      font-size: 1.5rem;
+      font-size: 1.25rem;
       background: linear-gradient(135deg, #d6e2ff, #8aa6ff);
-      background-clip: text;
       -webkit-background-clip: text;
+      background-clip: text;
       color: transparent;
+      font-weight: 700;
     }
     .badge {
       background: #111a36;
-      padding: 4px 14px;
+      padding: 4px 12px;
       border-radius: 40px;
       font-size: 0.75rem;
+      border: 1px solid #202b54;
+      white-space: nowrap;
     }
+    
+    /* ক্যাটাগরি স্ট্রিপ (মোবাইলে সোয়াইপযোগ্য) */
     .category-strip {
       overflow-x: auto;
       white-space: nowrap;
-      margin: 10px 0 8px;
-      padding-bottom: 6px;
+      margin: 8px 0;
+      padding-bottom: 8px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .category-strip::-webkit-scrollbar {
+      display: none; /* স্ক্রলবার হাইড */
     }
     .cat-btn {
       background: #0f162f;
       border: 1px solid #2c3870;
-      padding: 5px 15px;
+      padding: 6px 16px;
       border-radius: 40px;
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       margin-right: 8px;
       cursor: pointer;
       display: inline-block;
       color: #bbd4ff;
+      transition: 0.2s;
     }
     .cat-btn.active {
       background: #3c6eff;
       border-color: white;
       color: white;
     }
+
+    /* সার্চ এবং অ্যাকশন বাটন */
     .controls {
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column; /* মোবাইলে নিচে নিচে বসবে */
       gap: 10px;
-      margin: 12px 0 6px;
+      margin: 8px 0;
     }
     .search-input {
-      flex: 2;
+      width: 100%;
       background: #0f162f;
       border: 1px solid #2c3870;
-      padding: 8px 16px;
-      border-radius: 60px;
+      padding: 10px 16px;
+      border-radius: 40px;
       color: white;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .search-input:focus {
+      border-color: #3c6eff;
+    }
+    .btn-group {
+      display: flex;
+      gap: 8px;
     }
     .btn {
+      flex: 1;
       background: #111a36;
       border: 1px solid #3a4790;
-      padding: 6px 14px;
+      padding: 10px 14px;
       border-radius: 40px;
       cursor: pointer;
       color: white;
+      font-size: 0.85rem;
+      font-weight: 500;
+      text-align: center;
     }
     .btn-primary {
       background: linear-gradient(105deg, #3c6eff, #5f3af0);
       border: none;
-      color: white;
     }
+    .info-tag {
+      font-size: 10px;
+      color: #8aa6ff;
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    /* আইকন গ্রিড (মোবাইলে ২ কলাম বিশিষ্ট) */
     .icon-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 0.9rem;
-      padding: 1.2rem;
-    }
-    @media (min-width: 640px) {
-      .icon-grid { grid-template-columns: repeat(3, 1fr); }
-    }
-    @media (min-width: 900px) {
-      .icon-grid { grid-template-columns: repeat(4, 1fr); }
-    }
-    @media (min-width: 1200px) {
-      .icon-grid { grid-template-columns: repeat(5, 1fr); }
+      gap: 10px;
+      padding: 16px;
     }
     .icon-card {
       background: rgba(15, 24, 48, 0.8);
-      border-radius: 20px;
+      border-radius: 16px;
       border: 1px solid #2c3a70;
       aspect-ratio: 1 / 1;
       display: flex;
@@ -175,15 +183,15 @@
       justify-content: center;
       position: relative;
       cursor: pointer;
-      transition: 0.2s;
+      transition: transform 0.2s, border-color 0.2s;
+      padding: 10px;
     }
-    .icon-card:hover {
-      transform: translateY(-4px);
-      border-color: #8aa6ff;
+    .icon-card:active {
+      transform: scale(0.95); /* মোবাইল টাচ ফিডব্যাক */
     }
     .icon-card img {
-      width: 54%;
-      height: 54%;
+      width: 50%;
+      height: 50%;
       object-fit: contain;
     }
     .icon-name {
@@ -191,69 +199,94 @@
       bottom: 0;
       left: 0;
       right: 0;
-      background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+      background: linear-gradient(to top, rgba(5, 8, 20, 0.95), transparent);
       font-size: 0.65rem;
-      padding: 5px;
+      padding: 8px 6px 4px;
       text-align: center;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      border-bottom-left-radius: 16px;
+      border-bottom-right-radius: 16px;
     }
     .copy-badge {
       position: absolute;
-      top: 6px;
-      right: 6px;
+      top: 8px;
+      right: 8px;
       background: #22c55e;
-      width: 22px;
-      height: 22px;
-      border-radius: 30px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
       display: none;
       align-items: center;
       justify-content: center;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: bold;
+      color: white;
     }
     .icon-card.copied-flash .copy-badge {
       display: flex;
     }
+
+    /* স্ট্যাটাস ও নোটিফিকেশন */
+    .status-area {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #9aa9e0;
+      font-size: 0.9rem;
+    }
+    .load-more-hint {
+      text-align: center;
+      margin: 10px 0 25px;
+      font-size: 0.75rem;
+      color: #6375b3;
+    }
     .toast {
       position: fixed;
-      bottom: 30px;
+      bottom: 24px;
       left: 50%;
-      transform: translateX(-50%) translateY(80px);
-      background: #1c2d55e6;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(28, 45, 85, 0.95);
       backdrop-filter: blur(12px);
-      padding: 8px 20px;
-      border-radius: 60px;
-      font-size: 0.8rem;
-      transition: 0.25s;
+      padding: 10px 24px;
+      border-radius: 40px;
+      font-size: 0.85rem;
+      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       z-index: 200;
+      white-space: nowrap;
+      border: 1px solid #3c6eff;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     }
     .toast.show {
       transform: translateX(-50%) translateY(0);
     }
-    .status-area {
-      text-align: center;
-      padding: 1rem;
-      color: #9aa9e0;
+
+    /* === রেসপনসিভ ব্রেকপয়েন্ট (Desktop & Tablets) === */
+    @media (min-width: 480px) {
+      .icon-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
     }
-    .load-more-hint {
-      text-align: center;
-      margin: 10px 0 20px;
-      font-size: 0.75rem;
+    @media (min-width: 768px) {
+      .status-bar { padding: 14px 24px; }
+      .library-header { padding: 16px 24px; }
+      .controls { flex-direction: row; align-items: center; }
+      .search-input { flex: 2; }
+      .btn-group { flex: 1; }
+      .icon-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 24px; }
+      h1 { font-size: 1.6rem; }
+    }
+    @media (min-width: 1024px) {
+      .icon-grid { grid-template-columns: repeat(6, 1fr); }
+    }
+    @media (min-width: 1400px) {
+      .icon-grid { grid-template-columns: repeat(8, 1fr); }
     }
   </style>
 </head>
 <body>
 
-<div class="file-selector">
-  <div class="select-area">
-    <label for="zipFileInput" class="file-label">📁 ZIP ফাইল সিলেক্ট করুন</label>
-    <input type="file" id="zipFileInput" accept=".zip" style="display:none;" />
-    <span id="selectedFileName">🔘 কোনো ফাইল নির্বাচিত হয়নি</span>
-  </div>
-  <button id="resetAllBtn" class="reset-btn">🗑️ রিসেট</button>
-  <div class="status-badge" id="globalStatus">⚡ ফাইল সিলেক্ট করুন</div>
+<div class="status-bar">
+  <div class="status-badge" id="globalStatus">⏳ লাইব্রেরি লোড হচ্ছে...</div>
+  <button id="reloadBtn" class="reload-btn" style="display:none;">🔄 রিলোড</button>
 </div>
 
 <header class="library-header" style="display:none;" id="mainHeader">
@@ -261,15 +294,19 @@
     <h1>🎨 SVG Icon Library</h1>
     <span class="badge" id="iconCounter">— icons</span>
   </div>
+  
   <div class="category-strip" id="categoryStrip">
     <div id="categoryList"></div>
   </div>
+  
   <div class="controls">
-    <input type="text" id="searchInput" class="search-input" placeholder="🔍 আইকন খুঁজুন (যেমন: heart, bookmark)">
-    <button id="shuffleBtn" class="btn btn-primary">🎲 শাফল</button>
-    <button id="loadMoreBtn" class="btn">⤵ আরও লোড</button>
+    <input type="text" id="searchInput" class="search-input" placeholder="🔍 আইকন খুঁজুন (যেমন: heart, home)">
+    <div class="btn-group">
+      <button id="shuffleBtn" class="btn btn-primary">🎲 শাফল</button>
+      <button id="loadMoreBtn" class="btn">⤵ আরও</button>
+    </div>
   </div>
-  <div style="font-size:11px; margin-top:6px;">✅ যেকোনো আইকনে ক্লিক করলে SVG কোড কপি হবে</div>
+  <div class="info-tag">✅ যেকোনো আইকনে ট্যাপ করলেই SVG কোড কপি হয়ে যাবে</div>
 </header>
 
 <main>
@@ -282,9 +319,10 @@
 
 <script>
   (function() {
-    const zipFileInput = document.getElementById('zipFileInput');
-    const selectedFileSpan = document.getElementById('selectedFileName');
-    const resetBtn = document.getElementById('resetAllBtn');
+    // এখানে আপনার জিপ ফাইলের সঠিক নাম বসিয়ে দিন যা `/library1/` ফোল্ডারে আছে।
+    const ZIP_URL = '/library1/icons.zip'; 
+
+    const reloadBtn = document.getElementById('reloadBtn');
     const globalStatus = document.getElementById('globalStatus');
     const mainHeader = document.getElementById('mainHeader');
     const gridContainer = document.getElementById('iconGrid');
@@ -306,7 +344,7 @@
     let displayList = [];
     let loadedCount = 0;
     let isLoadingBatch = false;
-    const BATCH_SIZE = 40;
+    const BATCH_SIZE = 30; // মোবাইল পারফরম্যান্সের জন্য ব্যাচ সাইজ ৩০ করা হয়েছে
 
     function showToast(msg, duration = 1500) {
       toastEl.textContent = msg;
@@ -314,23 +352,15 @@
       setTimeout(() => toastEl.classList.remove('show'), duration);
     }
 
-    // ফিক্সড ফাংশন: জিপ ফাইলের সম্পূর্ণ পাথ থেকে ক্যাটাগরি ফোল্ডারের নাম বের করার জন্য
     function extractCategoryFromPath(filePath) {
       let parts = filePath.split('/');
-      // ফাইল নেমটা রিমুভ করি
       parts.pop(); 
-      
-      // যদি মূল জিপের ভেতরেই সাব-ফোল্ডার থাকে (যেমন: svg-icon-pack/001-dashboard-ui)
       if (parts.length > 0) {
         let lastFolder = parts[parts.length - 1];
-        // যদি রুট ফোল্ডার আসে (যেমন: svg-icon-pack) এবং আরও ফোল্ডার ভেতরে থাকে
         if (lastFolder === 'svg-icon-pack' && parts.length > 1) {
           return 'General';
         }
-        
-        // ফোল্ডারের নামের শুরুর সিরিয়াল নম্বর (যেমন: 001-) বাদ দিয়ে সুন্দর নাম তৈরি
         let cleanName = lastFolder.replace(/^\d+[-_]/, '');
-        // ক্যাপিটালাইজেশন করা (dashboard-ui -> Dashboard Ui)
         return cleanName.split(/[-_]/).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
       }
       return 'Uncategorized';
@@ -397,15 +427,15 @@
 
     function updateStatsUI() {
       const total = displayList.length;
-      iconCounterSpan.innerText = `${total.toLocaleString()} icon${total !== 1 ? 's' : ''}`;
-      if (total === 0) statusDiv.innerHTML = '🔍 মিলছে না — ফিল্টার বা সার্চ পরিবর্তন করুন।';
-      else statusDiv.innerHTML = `✨ ${total} টি আইকন পাওয়া গেছে — ক্লিক করে SVG কপি করুন ✨`;
+      iconCounterSpan.innerText = `${total.toLocaleString()} icons`;
+      if (total === 0) statusDiv.innerHTML = '🔍 মিলছে না — ফিল্টার পরিবর্তন করুন।';
+      else statusDiv.innerHTML = `✨ ${total} টি আইকন লোড হয়েছে`;
     }
 
     async function renderNextBatch() {
       if (!zipArchive || isLoadingBatch) return;
       if (loadedCount >= displayList.length) {
-        if (displayList.length > 0) loadMoreHint.innerHTML = `✔️ সব ${displayList.length}টি আইকন লোড হয়েছে।`;
+        if (displayList.length > 0) loadMoreHint.innerHTML = `✔️ সব আইকন লোড হয়েছে।`;
         else loadMoreHint.innerHTML = '';
         return;
       }
@@ -419,14 +449,18 @@
         const fileName = filePath.split('/').pop();
         const card = document.createElement('div');
         card.className = 'icon-card';
+        
         const img = document.createElement('img');
         img.style.opacity = '0';
+        
         const nameSpan = document.createElement('div');
         nameSpan.className = 'icon-name';
-        nameSpan.innerText = fileName.length > 28 ? fileName.slice(0,25)+'...' : fileName;
+        nameSpan.innerText = fileName.replace('.svg', '');
+        
         const badge = document.createElement('div');
         badge.className = 'copy-badge';
         badge.innerText = '✓';
+        
         card.appendChild(img);
         card.appendChild(nameSpan);
         card.appendChild(badge);
@@ -447,30 +481,35 @@
           img.style.opacity = '0.8';
         }
         
-        card.addEventListener('click', async (e) => {
+        // টাচ এবং ক্লিক ইভেন্ট একসাথে হ্যান্ডেল করা
+        const copyHandler = async (e) => {
+          e.preventDefault();
           e.stopPropagation();
           try {
             const raw = await zipArchive.file(filePath).async('string');
             await navigator.clipboard.writeText(raw);
             card.classList.add('copied-flash');
-            showToast(`✅ কপি: ${fileName}`, 1200);
+            showToast(`✅ কপিড: ${fileName}`, 1000);
             setTimeout(() => card.classList.remove('copied-flash'), 1000);
           } catch(err) {
-            showToast(`❌ কপি ব্যর্থ`, 1200);
+            showToast(`❌ কপি ব্যর্থ হয়েছে`, 1000);
           }
-        });
+        };
+
+        card.addEventListener('click', copyHandler);
         fragment.appendChild(card);
       }
       gridContainer.appendChild(fragment);
       loadedCount = end;
       isLoadingBatch = false;
+      
       const remaining = displayList.length - loadedCount;
-      if (remaining > 0) loadMoreHint.innerHTML = `⬇️ আরো ${remaining} টি আইকন বাকি (স্ক্রল বা লোড মোরে)`;
-      else loadMoreHint.innerHTML = `🎉 সব ${displayList.length} টি আইকন সম্পূর্ণ`;
+      if (remaining > 0) loadMoreHint.innerHTML = `⬇️ নিচে স্ক্রল করুন বা 'আরও' বাটনে চাপুন (বাকি ${remaining}টি)`;
+      else loadMoreHint.innerHTML = `🎉 সব ${displayList.length} টি আইকন লোড সম্পন্ন!`;
     }
     
     function shuffleDisplay() {
-      if (displayList.length <= 1) return showToast('শাফল করার মতো যথেষ্ট আইকন নেই', 1000);
+      if (displayList.length <= 1) return showToast('শাফল করার মতো আইকন নেই', 1000);
       for (let i = displayList.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [displayList[i], displayList[j]] = [displayList[j], displayList[i]];
@@ -483,7 +522,7 @@
     
     function manualLoadMore() {
       if (zipArchive && loadedCount < displayList.length) renderNextBatch();
-      else showToast('সব আইকন ইতিমধ্যে লোড', 800);
+      else showToast('সব আইকন ইতিমধ্যে লোড হয়েছে', 800);
     }
     
     function scrollHandler() {
@@ -491,33 +530,33 @@
       const scrollY = window.scrollY || document.documentElement.scrollTop;
       const winH = window.innerHeight;
       const docH = document.documentElement.scrollHeight;
-      if (scrollY + winH >= docH - 300) {
+      if (scrollY + winH >= docH - 400) {
         if (loadedCount < displayList.length) renderNextBatch();
       }
     }
     
-    async function processZip(file) {
-      if (!file) return;
-      selectedFileSpan.innerText = `📄 ${file.name}`;
-      globalStatus.innerText = `⏳ লোড হচ্ছে: ${file.name} ...`;
-      statusDiv.innerHTML = `📦 "${file.name}" প্রসেস করা হচ্ছে...`;
-      gridContainer.innerHTML = '';
-      categoryListDiv.innerHTML = '';
-      activeCategory = 'all';
-      searchInput.value = '';
+    // অটো জিপ লোড করার ফাংশন
+    async function loadAutomaticZip() {
+      globalStatus.innerText = `⏳ সার্ভার থেকে ফাইল লোড হচ্ছে...`;
+      statusDiv.innerHTML = `📦 লাইব্রেরি প্রস্তুত করা হচ্ছে, দয়া করে অপেক্ষা করুন...`;
+      reloadBtn.style.display = 'none';
       
       try {
-        const arrayBuffer = await file.arrayBuffer();
+        const response = await fetch(ZIP_URL);
+        if (!response.ok) {
+          throw new Error(`সার্ভার রেসপন্স কোড: ${response.status}`);
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
         zipArchive = await JSZip.loadAsync(arrayBuffer);
         const allEntries = Object.keys(zipArchive.files);
         
-        // শুধু ফাইল চেক করা এবং কোন ম্যাক বা হিডেন ক্যাশ ফাইল (.DS_Store / __MACOSX) ফিল্টার করা
         allSvgPaths = allEntries.filter(f => {
           return f.toLowerCase().endsWith('.svg') && !f.includes('__MACOSX') && !f.startsWith('.');
         }).sort();
 
         if (allSvgPaths.length === 0) {
-          throw new Error('এই জিপে কোনো .svg ফাইল নেই');
+          throw new Error('জিপ ফাইলের ভেতর কোনো .svg ফাইল পাওয়া যায়নি।');
         }
         
         const { catMap, categories } = buildCategories(allSvgPaths);
@@ -529,52 +568,30 @@
         filteredPaths = [...allSvgPaths];
         displayList = [...allSvgPaths];
         loadedCount = 0;
+        
         mainHeader.style.display = 'block';
-        globalStatus.innerText = `✅ লোড হয়েছে: ${allSvgPaths.length} টি আইকন | ${uniqueCategories.length} ক্যাটাগরি`;
-        statusDiv.innerHTML = `🎉 "${file.name}" থেকে ${allSvgPaths.length} টি SVG সফলভাবে লোড!`;
+        globalStatus.innerText = `✅ মোট আইকন: ${allSvgPaths.length} টি`;
         updateStatsUI();
         renderNextBatch();
+        
       } catch (err) {
         console.error(err);
-        globalStatus.innerText = `❌ ব্যর্থ: ${err.message}`;
-        statusDiv.innerHTML = `⚠️ ফাইলটি পড়া যায়নি। নিশ্চিত করুন এটি একটি বৈধ ZIP এবং এতে .svg ফাইল আছে।`;
+        globalStatus.innerText = `❌ লোড ব্যর্থ হয়েছে`;
+        statusDiv.innerHTML = `⚠️ <b>ত্রুটি:</b> ফাইলটি পাওয়া যায়নি বা পড়া যাচ্ছে না। নিশ্চিত করুন <code>${ZIP_URL}</code> পাথে সঠিক জিপ ফাইলটি রয়েছে।`;
         mainHeader.style.display = 'none';
-        zipArchive = null;
-        allSvgPaths = [];
+        reloadBtn.style.display = 'inline-block';
       }
     }
     
-    function resetAll() {
-      zipArchive = null;
-      allSvgPaths = [];
-      displayList = [];
-      gridContainer.innerHTML = '';
-      categoryListDiv.innerHTML = '';
-      mainHeader.style.display = 'none';
-      globalStatus.innerText = '⚡ ফাইল সিলেক্ট করুন';
-      statusDiv.innerHTML = '🔽 উপরের বাটনে ক্লিক করে আপনার কম্পিউটার থেকে একটি ZIP ফাইল বাছাই করুন।';
-      loadMoreHint.innerHTML = '';
-      selectedFileSpan.innerText = '🔘 কোনো ফাইল নির্বাচিত হয়নি';
-      activeCategory = 'all';
-      searchInput.value = '';
-      zipFileInput.value = '';
-    }
-    
-    document.querySelector('.file-label').addEventListener('click', () => {
-      zipFileInput.click();
-    });
-    zipFileInput.addEventListener('change', (e) => {
-      if (e.target.files && e.target.files[0]) {
-        processZip(e.target.files[0]);
-      }
-    });
-    resetBtn.addEventListener('click', resetAll);
+    // ইভেন্ট লিসেনারস
     shuffleBtn.addEventListener('click', () => { if (displayList.length) shuffleDisplay(); });
     loadMoreBtn.addEventListener('click', manualLoadMore);
     searchInput.addEventListener('input', applyFilters);
     window.addEventListener('scroll', scrollHandler);
+    reloadBtn.addEventListener('click', loadAutomaticZip);
     
-    resetAll();
+    // পেজ লোড হওয়ার সাথে সাথে অটো রান হবে
+    loadAutomaticZip();
   })();
 </script>
 </body>
