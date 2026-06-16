@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>SVG Viewer – মাল্টিপল জিপ লাইব্রেরি</title>
+  <title>SVG Viewer – গিটহাব পেজ ফিক্স</title>
   <!-- JSZip Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
@@ -20,9 +20,7 @@
       padding-bottom: env(safe-area-inset-bottom);
     }
 
-    /* === মোবাইল ফার্স্ট স্টাইল (Default Mobile) === */
-    
-    /* টপ স্ট্যাটাস ও জিপ সিলেকশন বার */
+    /* === মোবাইল ফার্স্ট স্টাইল === */
     .selector-bar {
       background: #0a0f1e;
       border-bottom: 1px solid #2a3366;
@@ -89,7 +87,7 @@
       white-space: nowrap;
     }
     
-    /* ক্যাটাগরি স্ট্রিপ (মোবাইলে সোয়াইপযোগ্য) */
+    /* ক্যাটাগরি স্ট্রিপ */
     .category-strip {
       overflow-x: auto;
       white-space: nowrap;
@@ -165,7 +163,7 @@
       text-align: center;
     }
 
-    /* আইকন গ্রিড (মোবাইলে ২ কলাম বিশিষ্ট) */
+    /* আইকন গ্রিড */
     .icon-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -261,7 +259,7 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    /* === রেসপনসিভ ব্রেকপয়েন্ট (Desktop & Tablets) === */
+    /* রেসপনসিভ ব্রেকপয়েন্ট */
     @media (min-width: 480px) {
       .icon-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
     }
@@ -278,20 +276,17 @@
     @media (min-width: 1024px) {
       .icon-grid { grid-template-columns: repeat(6, 1fr); }
     }
-    @media (min-width: 1400px) {
-      .icon-grid { grid-template-columns: repeat(8, 1fr); }
-    }
   </style>
 </head>
 <body>
 
 <div class="selector-bar">
-  <!-- স্ক্রিনশটের ৪টি জিপ ফাইলের লিস্ট ড্রপডাউনে অ্যাড করা হলো -->
+  <!-- ফিক্সড: গিটহাব পেজেসের জন্য রিলেティブ পাথ (শুরুর স্ল্যাশ রিমুভড) -->
   <select id="librarySelect" class="library-select">
-    <option value="/library1/note_app_svg_icon_pack.zip">📝 Note App SVG Icon Pack</option>
-    <option value="/library1/premium_svg_heavy_pack_v3.zip">💎 Premium SVG Heavy Pack V3</option>
-    <option value="/library1/svg-icon-pack-part1.zip">📦 SVG Icon Pack (Part 1)</option>
-    <option value="/library1/svg-icon-pack-part2.zip">📦 SVG Icon Pack (Part 2)</option>
+    <option value="library1/note_app_svg_icon_pack.zip">📝 Note App SVG Icon Pack</option>
+    <option value="library1/premium_svg_heavy_pack_v3.zip">💎 Premium SVG Heavy Pack V3</option>
+    <option value="library1/svg-icon-pack-part1.zip">📦 SVG Icon Pack (Part 1)</option>
+    <option value="library1/svg-icon-pack-part2.zip">📦 SVG Icon Pack (Part 2)</option>
   </select>
   <div class="status-badge" id="globalStatus">⏳ লাইব্রেরি লোড হচ্ছে...</div>
 </div>
@@ -348,7 +343,7 @@
     let displayList = [];
     let loadedCount = 0;
     let isLoadingBatch = false;
-    const BATCH_SIZE = 30; // মোবাইল ফ্রেন্ডলি রেন্ডারিং ব্যাচ সাইজ
+    const BATCH_SIZE = 30;
 
     function showToast(msg, duration = 1500) {
       toastEl.textContent = msg;
@@ -361,13 +356,13 @@
       parts.pop(); 
       if (parts.length > 0) {
         let lastFolder = parts[parts.length - 1];
-        if ((lastFolder === 'svg-icon-pack' || lastFolder === 'library1') && parts.length > 1) {
+        if (lastFolder === 'svg-icon-pack' || lastFolder === 'library1' || lastFolder.toLowerCase().includes('icon')) {
           return 'General';
         }
         let cleanName = lastFolder.replace(/^\d+[-_]/, '');
         return cleanName.split(/[-_]/).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
       }
-      return 'Uncategorized';
+      return 'General';
     }
 
     function buildCategories(paths) {
@@ -538,17 +533,20 @@
       }
     }
     
-    // নির্দিষ্ট জিপ ফাইল অটো-লোড করার ফাংশন
+    // গিটহাব পেজেস ফ্রেন্ডলি ফাইল লোডার
     async function loadSelectedZip(url) {
-      globalStatus.innerText = `⏳ ফাইল লোড হচ্ছে...`;
-      statusDiv.innerHTML = `📦 লাইব্রেরি প্রস্তুত করা হচ্ছে, দয়া করে অপেক্ষা করুন...`;
+      globalStatus.innerText = `⏳ ফাইল ডাউনলোড হচ্ছে...`;
+      statusDiv.innerHTML = `📦 লাইব্রেরি প্রস্তুত করা হচ্ছে, একটু অপেক্ষা করুন...`;
       gridContainer.innerHTML = '';
       categoryListDiv.innerHTML = '';
       loadMoreHint.innerHTML = '';
       mainHeader.style.display = 'none';
       
       try {
-        const response = await fetch(url);
+        // গিটহাবের ক্যাশিং ইস্যু এড়াতে একটি র্যান্ডম কুয়েরি প্যারামিটার যোগ করা হয়েছে
+        const cleanUrl = url + '?v=' + Math.random();
+        const response = await fetch(cleanUrl);
+        
         if (!response.ok) {
           throw new Error(`সার্ভার রেসপন্স কোড: ${response.status}`);
         }
@@ -558,7 +556,7 @@
         const allEntries = Object.keys(zipArchive.files);
         
         allSvgPaths = allEntries.filter(f => {
-          return f.toLowerCase().endsWith('.svg') && !f.includes('__MACOSX') && !f.startsWith('.');
+          return f.toLowerCase().endsWith('.svg') && !f.includes('__MACOSX') && !f.startsWith('.') && !f.includes('README');
         }).sort();
 
         if (allSvgPaths.length === 0) {
@@ -584,23 +582,21 @@
       } catch (err) {
         console.error(err);
         globalStatus.innerText = `❌ লোড ব্যর্থ হয়েছে`;
-        statusDiv.innerHTML = `⚠️ <b>ত্রুটি:</b> ফাইলটি পাওয়া যায়নি বা পড়া যাচ্ছে না। নিশ্চিত করুন আপনার জিপটি সঠিক পাথে আছে।`;
+        statusDiv.innerHTML = `⚠️ <b>লোড হতে পারেনি!</b><br>পাথ বা ফাইল সাইজের কারণে সমস্যা হতে পারে। নিশ্চিত করুন আপনার গিটহাব রিপোজিটরিতে <code>${url}</code> ফাইলটি পুশ করা আছে এবং ফাইলের নামের বানান ঠিক আছে।`;
         mainHeader.style.display = 'none';
       }
     }
     
-    // ইভেন্ট লিসেনারস
     shuffleBtn.addEventListener('click', () => { if (displayList.length) shuffleDisplay(); });
     loadMoreBtn.addEventListener('click', manualLoadMore);
     searchInput.addEventListener('input', applyFilters);
     window.addEventListener('scroll', scrollHandler);
     
-    // ড্রপডাউন চেঞ্জ ইভেন্ট
     librarySelect.addEventListener('change', (e) => {
       loadSelectedZip(e.target.value);
     });
     
-    // প্রথমবার প্রথম জিপ ফাইলটি অটো-লোড হবে
+    // স্টার্টআপ লোড
     loadSelectedZip(librarySelect.value);
   })();
 </script>
