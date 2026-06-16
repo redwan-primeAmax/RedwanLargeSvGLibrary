@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>SVG Viewer – অটো জিপ লাইব্রেরি</title>
+  <title>SVG Viewer – মাল্টিপল জিপ লাইব্রেরি</title>
+  <!-- JSZip Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     * {
@@ -21,38 +22,37 @@
 
     /* === মোবাইল ফার্স্ট স্টাইল (Default Mobile) === */
     
-    /* টপ স্ট্যাটাস বার */
-    .status-bar {
+    /* টপ স্ট্যাটাস ও জিপ সিলেকশন বার */
+    .selector-bar {
       background: #0a0f1e;
       border-bottom: 1px solid #2a3366;
       padding: 12px 16px;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: column;
       gap: 10px;
+    }
+    .library-select {
+      width: 100%;
+      background: #111a36;
+      border: 1px solid #3a4790;
+      padding: 10px 14px;
+      border-radius: 40px;
+      color: white;
+      font-size: 0.9rem;
+      outline: none;
+      cursor: pointer;
     }
     .status-badge {
       background: #0f1430;
-      padding: 6px 14px;
+      padding: 8px 14px;
       border-radius: 40px;
       font-size: 0.8rem;
       color: #bbd4ff;
       border: 1px solid #1f2a4e;
+      text-align: center;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      flex: 1;
-    }
-    .reload-btn {
-      background: linear-gradient(105deg, #3c6eff, #5f3af0);
-      border: none;
-      padding: 6px 16px;
-      border-radius: 40px;
-      cursor: pointer;
-      font-weight: bold;
-      color: white;
-      font-size: 0.8rem;
-      white-space: nowrap;
     }
 
     /* হেডার ও কন্ট্রোলস */
@@ -98,7 +98,7 @@
       -webkit-overflow-scrolling: touch;
     }
     .category-strip::-webkit-scrollbar {
-      display: none; /* স্ক্রলবার হাইড */
+      display: none;
     }
     .cat-btn {
       background: #0f162f;
@@ -121,7 +121,7 @@
     /* সার্চ এবং অ্যাকশন বাটন */
     .controls {
       display: flex;
-      flex-direction: column; /* মোবাইলে নিচে নিচে বসবে */
+      flex-direction: column;
       gap: 10px;
       margin: 8px 0;
     }
@@ -187,7 +187,7 @@
       padding: 10px;
     }
     .icon-card:active {
-      transform: scale(0.95); /* মোবাইল টাচ ফিডব্যাক */
+      transform: scale(0.95);
     }
     .icon-card img {
       width: 50%;
@@ -266,7 +266,8 @@
       .icon-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
     }
     @media (min-width: 768px) {
-      .status-bar { padding: 14px 24px; }
+      .selector-bar { flex-direction: row; align-items: center; padding: 14px 24px; }
+      .library-select { width: 300px; }
       .library-header { padding: 16px 24px; }
       .controls { flex-direction: row; align-items: center; }
       .search-input { flex: 2; }
@@ -284,9 +285,15 @@
 </head>
 <body>
 
-<div class="status-bar">
+<div class="selector-bar">
+  <!-- স্ক্রিনশটের ৪টি জিপ ফাইলের লিস্ট ড্রপডাউনে অ্যাড করা হলো -->
+  <select id="librarySelect" class="library-select">
+    <option value="/library1/note_app_svg_icon_pack.zip">📝 Note App SVG Icon Pack</option>
+    <option value="/library1/premium_svg_heavy_pack_v3.zip">💎 Premium SVG Heavy Pack V3</option>
+    <option value="/library1/svg-icon-pack-part1.zip">📦 SVG Icon Pack (Part 1)</option>
+    <option value="/library1/svg-icon-pack-part2.zip">📦 SVG Icon Pack (Part 2)</option>
+  </select>
   <div class="status-badge" id="globalStatus">⏳ লাইব্রেরি লোড হচ্ছে...</div>
-  <button id="reloadBtn" class="reload-btn" style="display:none;">🔄 রিলোড</button>
 </div>
 
 <header class="library-header" style="display:none;" id="mainHeader">
@@ -319,10 +326,7 @@
 
 <script>
   (function() {
-    // এখানে আপনার জিপ ফাইলের সঠিক নাম বসিয়ে দিন যা `/library1/` ফোল্ডারে আছে।
-    const ZIP_URL = '/library1/icons.zip'; 
-
-    const reloadBtn = document.getElementById('reloadBtn');
+    const librarySelect = document.getElementById('librarySelect');
     const globalStatus = document.getElementById('globalStatus');
     const mainHeader = document.getElementById('mainHeader');
     const gridContainer = document.getElementById('iconGrid');
@@ -344,7 +348,7 @@
     let displayList = [];
     let loadedCount = 0;
     let isLoadingBatch = false;
-    const BATCH_SIZE = 30; // মোবাইল পারফরম্যান্সের জন্য ব্যাচ সাইজ ৩০ করা হয়েছে
+    const BATCH_SIZE = 30; // মোবাইল ফ্রেন্ডলি রেন্ডারিং ব্যাচ সাইজ
 
     function showToast(msg, duration = 1500) {
       toastEl.textContent = msg;
@@ -357,7 +361,7 @@
       parts.pop(); 
       if (parts.length > 0) {
         let lastFolder = parts[parts.length - 1];
-        if (lastFolder === 'svg-icon-pack' && parts.length > 1) {
+        if ((lastFolder === 'svg-icon-pack' || lastFolder === 'library1') && parts.length > 1) {
           return 'General';
         }
         let cleanName = lastFolder.replace(/^\d+[-_]/, '');
@@ -429,7 +433,7 @@
       const total = displayList.length;
       iconCounterSpan.innerText = `${total.toLocaleString()} icons`;
       if (total === 0) statusDiv.innerHTML = '🔍 মিলছে না — ফিল্টার পরিবর্তন করুন।';
-      else statusDiv.innerHTML = `✨ ${total} টি আইকন লোড হয়েছে`;
+      else statusDiv.innerHTML = `✨ ${total} টি আইকন ফিল্টার করা হয়েছে`;
     }
 
     async function renderNextBatch() {
@@ -481,7 +485,6 @@
           img.style.opacity = '0.8';
         }
         
-        // টাচ এবং ক্লিক ইভেন্ট একসাথে হ্যান্ডেল করা
         const copyHandler = async (e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -535,14 +538,17 @@
       }
     }
     
-    // অটো জিপ লোড করার ফাংশন
-    async function loadAutomaticZip() {
-      globalStatus.innerText = `⏳ সার্ভার থেকে ফাইল লোড হচ্ছে...`;
+    // নির্দিষ্ট জিপ ফাইল অটো-লোড করার ফাংশন
+    async function loadSelectedZip(url) {
+      globalStatus.innerText = `⏳ ফাইল লোড হচ্ছে...`;
       statusDiv.innerHTML = `📦 লাইব্রেরি প্রস্তুত করা হচ্ছে, দয়া করে অপেক্ষা করুন...`;
-      reloadBtn.style.display = 'none';
+      gridContainer.innerHTML = '';
+      categoryListDiv.innerHTML = '';
+      loadMoreHint.innerHTML = '';
+      mainHeader.style.display = 'none';
       
       try {
-        const response = await fetch(ZIP_URL);
+        const response = await fetch(url);
         if (!response.ok) {
           throw new Error(`সার্ভার রেসপন্স কোড: ${response.status}`);
         }
@@ -568,6 +574,7 @@
         filteredPaths = [...allSvgPaths];
         displayList = [...allSvgPaths];
         loadedCount = 0;
+        searchInput.value = '';
         
         mainHeader.style.display = 'block';
         globalStatus.innerText = `✅ মোট আইকন: ${allSvgPaths.length} টি`;
@@ -577,9 +584,8 @@
       } catch (err) {
         console.error(err);
         globalStatus.innerText = `❌ লোড ব্যর্থ হয়েছে`;
-        statusDiv.innerHTML = `⚠️ <b>ত্রুটি:</b> ফাইলটি পাওয়া যায়নি বা পড়া যাচ্ছে না। নিশ্চিত করুন <code>${ZIP_URL}</code> পাথে সঠিক জিপ ফাইলটি রয়েছে।`;
+        statusDiv.innerHTML = `⚠️ <b>ত্রুটি:</b> ফাইলটি পাওয়া যায়নি বা পড়া যাচ্ছে না। নিশ্চিত করুন আপনার জিপটি সঠিক পাথে আছে।`;
         mainHeader.style.display = 'none';
-        reloadBtn.style.display = 'inline-block';
       }
     }
     
@@ -588,10 +594,14 @@
     loadMoreBtn.addEventListener('click', manualLoadMore);
     searchInput.addEventListener('input', applyFilters);
     window.addEventListener('scroll', scrollHandler);
-    reloadBtn.addEventListener('click', loadAutomaticZip);
     
-    // পেজ লোড হওয়ার সাথে সাথে অটো রান হবে
-    loadAutomaticZip();
+    // ড্রপডাউন চেঞ্জ ইভেন্ট
+    librarySelect.addEventListener('change', (e) => {
+      loadSelectedZip(e.target.value);
+    });
+    
+    // প্রথমবার প্রথম জিপ ফাইলটি অটো-লোড হবে
+    loadSelectedZip(librarySelect.value);
   })();
 </script>
 </body>
